@@ -1,135 +1,231 @@
-/**
-  Automatic-School-Bell
-  Version 1.0
+#include "Adafruit_GFX.h" // include Adafruit graphix library
+#include "Adafruit_PCD8544.h" // include Adafruit PCD8544 (Nokia 3310/5110) library
+#include "SPI.h"  // include the SPI library
+#include "Wire.h" // include the wire library (required for I2C devices)
 
-  Copyright (C) 2023, Tinashe Marshall Chaterera.
-  Released under the MIT License.
-*/
-#include "EEPROM.h"
-#include "LiquidCrystal.h"
-#include "Keypad.h"
-
-// Create an lcd object
-LiquidCrystal lcd(13, 12, 11, 10, 9, 8);
+// NOkia 5110 LCD module connections (CLK, DIN, D/C, CS, RST)
+Adafruit_PCD8544 lcd = Adafruit_PCD8544(13, 12, 11, 10, 9);
 
 // constants
- int timetableAddress = 0;
-const int buzzer = A0; // this is the pin the buzzer is connected to
-const int warningLed = A1; // this blinks if there's an error in the code
-const byte rows = 4; // the number of rows on the keypad
-const byte cols = 3; // the numbers of columns on the keypad
+const int upBtn = 5; // the pin at which the up button is attached to
+const int downBtn = 6; // the pin at which the down button is attached to
+const int selectBtn = 7; // the pin at which the select button is attached to
+const int lcdLedPin = 8; // the pin where the led pin of the lcd is attached to
 
-char keys[rows][cols] = {
-  {'1','2','3'},
-  {'4','5','6'},
-  {'7','8','9'},
-  {'*','0','#'}
-};
+/* Variables */
+// set the lcd backlight as on by default
+boolean backlight = true;
+// set contrast to the default value
+int contrast = 50;
+// set the menu on the first menu item
+int menuItem = 1;
+// set the default page to the first page
+int page = 1;
 
-byte rowPins[rows] = {1, 2, 3, 4}; // the pins of the keypdad from the top
-byte colPins[cols] = {5, 6, 7}; // the pins of the keypdad from the left
+// set all button options to not pressed by default
+volatile boolean up = false;
+volatile boolean down = false;
+volatile boolean middle = false;
 
-char daysOfTheWeek[7][12] = {
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
-};
+// set button states to 0 
+int downButtonState = 0;
+int upButtonState = 0;  
+int selectButtonState = 0;          
+int lastDownButtonState = 0;
+int lastSelectButtonState = 0;
+int lastUpButtonState = 0;
 
-// variables
-int timetableType;
+void setup(){
+  // push buttons are connected as inputs 
+  // using Arduino's built-in pull-up resistors
+  pinMode(upBtn, INPUT_PULLUP);
+  pinMode(downBtn, INPUT_PULLUP);
+  pinMode(selectBtn, INPUT_PULLUP);
 
-// create a keypad object 
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, rows, cols);
+  // initialize the lcd led pin as output
+  pinMode(lcdLedPin, OUTPUT);
+  digitalWrite(lcdLedPin, LOW); // turn backlight Off
 
-// company info
-void companyInfo(){
-  lcd.setCursor(0, 1);
-  lcd.print("Visionaries Systems");
-  lcd.setCursor(0, 2);
-  lcd.print("All Rights Reserved.");
-  delay(2000);
-  lcd.clear();
+  // start serial communication
+  Serial.begin(9600);
+  
+  // initialize the lcd
+  lcd.begin();      
+  lcd.setContrast(contrast); //Set contrast to 50
+  lcd.clearDisplay(); 
+  lcd.display();   
 }
 
-// configure function
-void registerSettings(){
-  lcd.clear();
-  lcd.home();
-  lcd.print("SELECT TIMETABLE");
-  lcd.setCursor(0, 1);
-  lcd.print("DAYS OR CYCLES?");
-  lcd.setCursor(0, 3);
-  lcd.print("*[DAYS]");
-  lcd.setCursor(10, 3);
-  lcd.print("#[CYCLES]");
-}
+void loop(){
+  // call the function for displaying the menu
+  drawMenu();
 
-// get the timetable type from timetableAddress
-void getTimetableType(int timetableAddress){
-  lcd.clear();
-  lcd.home();
-  // read if there is a value in the memory address
-  const int timetableType = EEPROM.read(timetableAddress);
-  if(timetableType == NULL){
-    registerSettings();
-  } else if(timetableType == 0){
-    lcd.print("DAYS TIMETABLE SET");
-  } else {
-     lcd.print("CYCLES TIMETABLE SET");
+  // check the current state of the navigation buttons
+  upButtonState =   digitalRead(upBtn);
+  downButtonState = digitalRead(downBtn);
+  selectButtonState = digitalRead(selectBtn);
+  
+  // check if any of the navigation buttons has been pressed
+  checkIfUpButtonIsPressed();
+  checkIfDownButtonIsPressed();
+  checkIfSelectButtonIsPressed();
+
+  // check if the menu is currently on page 1 
+  // and if the up button is pressed
+  if(up && page == 1 ){
+    up = false;
+    menuItem--;
+    if(menuItem == 0){
+      menuItem = 3;
+    }      
+  } else if(up && page == 2 ){
+    up = false;
+    contrast--;
+    setContrast();
+  }
+
+  if(down && page == 1){
+    down = false;
+    menuItem++;
+    if(menuItem == 4) 
+    {
+      menuItem = 1;
+    }      
+  } else if(down && page == 2){
+    down = false;
+    contrast++;
+    setContrast();
+  }
+
+  if(middle){
+    middle = false;
+    
+    if(page == 1 && menuItem == 2){
+      if(backlight){
+        backlight = false;
+        turnBacklightOff();
+      } else {
+        backlight = true; 
+        turnBacklightOn();
+      }
+    }
+    if(page == 1 && menuItem == 3){
+      resetDefaults();
+    } else if(page == 1 && menuItem == 1){
+      page = 2;
+    } else if(page == 2){
+      page = 1;
+    }
   }
 }
 
-// this makes the user enter their timetable type
-void chooseTimetable(int timetableAddress, char key){
-  // clear the screen
-  lcd.clear();
-  // set the cursor to the top left
-  lcd.home();
-  if(isDigit(key)){
-    lcd.print("Invalid input!");
-    lcd.setCursor(0, 2);
-    lcd.print("Try again!");
-    registerSettings();
-  } else {
-    if(key == "*"){
-      timetableType = 0;
+void checkIfDownButtonIsPressed(){
+  if(downButtonState != lastDownButtonState){
+    if(downButtonState == 0){
+      down=true;
+    }
+    delay(50);
+  }
+  lastDownButtonState = downButtonState;
+}
+
+void checkIfUpButtonIsPressed(){
+  if(upButtonState != lastUpButtonState){
+    if(upButtonState == 0){
+      up=true;
+    }
+    delay(50);
+  }
+  lastUpButtonState = upButtonState;
+}
+
+void checkIfSelectButtonIsPressed(){
+  if(selectButtonState != lastSelectButtonState){
+    if(selectButtonState == 0){
+      middle=true;
+    }
+    delay(50);
+  }
+  lastSelectButtonState = selectButtonState;
+}
+
+void drawMenu(){ 
+  if(page == 1){    
+    lcd.setTextSize(1);
+    lcd.clearDisplay();
+    lcd.setTextColor(BLACK, WHITE);
+    lcd.setCursor(15, 0);
+    lcd.print("MAIN MENU");
+    lcd.drawFastHLine(0, 10, 83, BLACK);
+    lcd.setCursor(0, 15);
+  
+    if(menuItem == 1){ 
+      lcd.setTextColor(WHITE, BLACK);
     } else {
-      timetableType = 1;
+      lcd.setTextColor(BLACK, WHITE);
     }
 
-    // save the timetable type to EEPROM
-    EEPROM.update(timetableAddress, timetableType);
+    lcd.print(">Contrast");
+    lcd.setCursor(0, 25);
+  
+    if(menuItem == 2) 
+    {
+      lcd.setTextColor(WHITE, BLACK);
+    } else {
+      lcd.setTextColor(BLACK, WHITE);
+    }  
+
+    lcd.print(">Light: ");
+    
+    if(backlight){
+      lcd.print("ON");
+    } else {
+      lcd.print("OFF");
+    }
+    lcd.display();
+    
+    if(menuItem==3){ 
+      lcd.setTextColor(WHITE, BLACK);
+    } else {
+      lcd.setTextColor(BLACK, WHITE);
+    } 
+
+    lcd.setCursor(0, 35);
+    lcd.print(">Reset");
+    lcd.display();
+  } else if(page == 2){
+    lcd.setTextSize(1);
+    lcd.clearDisplay();
+    lcd.setTextColor(BLACK, WHITE);
+    lcd.setCursor(15, 0);
+    lcd.print("CONTRAST");
+    lcd.drawFastHLine(0, 10, 83,BLACK);
+    lcd.setCursor(5, 15);
+    lcd.print("Value");
+    lcd.setTextSize(2);
+    lcd.setCursor(5, 25);
+    lcd.print(contrast);
+    lcd.setTextSize(2);
+    lcd.display();
   }
 }
 
-// clear all memory
-void memoryReset(){
-  for(int i = 0; i < EEPROM.length(); i++){
-    EEPROM.write(i, 0);
-  }
+void resetDefaults(){
+  contrast = 50;
+  setContrast();
+  backlight = true;
+  turnBacklightOn();
 }
 
-void setup() {
-  // initialise the lcd
-  lcd.begin(20, 4);
-
-  // initialize the buzzer as an output
-  pinMode(buzzer, OUTPUT);
-
-  // set warningLed as output
-  pinMode(warningLed, OUTPUT);
-
-  // display the company info
-  companyInfo();
-
-  // check if there is any data in memory
-  getTimetableType(timetableAddress);
+void setContrast(){
+  lcd.setContrast(contrast);
+  lcd.display();
 }
 
-void loop() {
-  // check if there is any keypad key that has been pressed 
-  char key = keypad.getKey();
+void turnBacklightOn(){
+  digitalWrite(lcdLedPin, LOW);
+}
 
-  // if there's been a keypress, do something
-  if(key){
-    chooseTimetable(timetableAddress, key);
-  }
+void turnBacklightOff(){
+  digitalWrite(lcdLedPin, HIGH);
 }
