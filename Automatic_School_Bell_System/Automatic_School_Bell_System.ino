@@ -3,13 +3,35 @@
 #include "SPI.h"  // include the SPI library
 #include "Wire.h" // include the wire library (required for I2C devices)
 
-// NOkia 5110 LCD module connections (CLK, DIN, D/C, CS, RST)
+// Nokia 5110 LCD module connections (CLK, DIN, D/C, CS, RST)
 Adafruit_PCD8544 lcd = Adafruit_PCD8544(13, 12, 11, 10, 9);
 
+// app logo, 48x48px
+const unsigned char logo [] PROGMEM = {
+	0x01, 0xff, 0xff, 0xff, 0xff, 0x80, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xf0, 0x1e, 0x00, 0x00, 0x00, 
+	0x00, 0x78, 0x38, 0x00, 0x00, 0x00, 0x00, 0x1c, 0x70, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x60, 0x00, 
+	0x00, 0x00, 0x00, 0x06, 0x60, 0x00, 0x00, 0x00, 0x00, 0x06, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 
+	0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 
+	0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 
+	0x07, 0x80, 0x00, 0x03, 0xc0, 0x00, 0x0f, 0xc0, 0x00, 0x03, 0xc0, 0x00, 0x0f, 0xc0, 0x00, 0x03, 
+	0xc0, 0x00, 0x07, 0x80, 0x00, 0x03, 0xc0, 0x00, 0x01, 0x80, 0x00, 0x03, 0xc0, 0x00, 0x07, 0xc0, 
+	0x00, 0x03, 0xc0, 0x00, 0x07, 0xf0, 0x00, 0x03, 0xc0, 0x1f, 0x87, 0xf8, 0x00, 0x03, 0xc0, 0x3f, 
+	0xe7, 0xff, 0xc0, 0x03, 0xc0, 0x3f, 0xe7, 0xef, 0xe6, 0x03, 0xc0, 0x00, 0x07, 0xe0, 0xff, 0x03, 
+	0xc0, 0x7f, 0x07, 0xe0, 0x7f, 0x83, 0xc0, 0xff, 0x87, 0xf1, 0xff, 0xc3, 0xc0, 0xff, 0x8f, 0xf9, 
+	0xff, 0xc3, 0xc0, 0x00, 0x0f, 0x7c, 0xdf, 0x03, 0xc3, 0xfc, 0x1f, 0x3c, 0xfc, 0x03, 0xc3, 0xfe, 
+	0x3e, 0x3c, 0x20, 0x03, 0xc3, 0xfc, 0x7c, 0x3c, 0x00, 0x03, 0xc0, 0x01, 0xf8, 0x3c, 0x00, 0x03, 
+	0xc0, 0x01, 0xf0, 0x3c, 0x00, 0x03, 0xc0, 0x01, 0xc0, 0x3c, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x08, 
+	0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 
+	0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 
+	0xc0, 0x00, 0x00, 0x00, 0x00, 0x03, 0x60, 0x00, 0x00, 0x00, 0x00, 0x06, 0x60, 0x00, 0x00, 0x00, 
+	0x00, 0x06, 0x70, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x38, 0x00, 0x00, 0x00, 0x00, 0x1c, 0x1e, 0x00, 
+	0x00, 0x00, 0x00, 0x78, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xf0, 0x01, 0xff, 0xff, 0xff, 0xff, 0x80
+};
+
 // constants
-const int upBtn = 5; // the pin at which the up button is attached to
-const int downBtn = 6; // the pin at which the down button is attached to
-const int selectBtn = 7; // the pin at which the select button is attached to
+const int upButton = 5; // the pin at which the up button is attached to
+const int downButton = 6; // the pin at which the down button is attached to
+const int selectButton = 7; // the pin at which the select button is attached to
 const int lcdLedPin = 8; // the pin where the led pin of the lcd is attached to
 
 /* Variables */
@@ -27,33 +49,32 @@ volatile boolean up = false;
 volatile boolean down = false;
 volatile boolean middle = false;
 
-// set button states to 0 
-int downButtonState = 0;
+// set button states to 0
 int upButtonState = 0;  
-int selectButtonState = 0;          
+int downButtonState = 0; 
+int selectButtonState = 0;
+int lastUpButtonState = 0;          
 int lastDownButtonState = 0;
 int lastSelectButtonState = 0;
-int lastUpButtonState = 0;
 
 void setup(){
   // push buttons are connected as inputs 
   // using Arduino's built-in pull-up resistors
-  pinMode(upBtn, INPUT_PULLUP);
-  pinMode(downBtn, INPUT_PULLUP);
-  pinMode(selectBtn, INPUT_PULLUP);
-
-  // initialize the lcd led pin as output
+  pinMode(upButton, INPUT_PULLUP);
+  pinMode(downButton, INPUT_PULLUP);
+  pinMode(selectButton, INPUT_PULLUP);
   pinMode(lcdLedPin, OUTPUT);
-  digitalWrite(lcdLedPin, LOW); // turn backlight Off
 
   // start serial communication
   Serial.begin(9600);
   
   // initialize the lcd
   lcd.begin();      
+  lcd.clearDisplay(); // clear the buffer
   lcd.setContrast(contrast); //Set contrast to 50
-  lcd.clearDisplay(); 
+  lcd.drawBitmap(18, 0,  logo, 48, 48, BLACK); // display the app logo
   lcd.display();   
+  delay(3000);
 }
 
 void loop(){
@@ -61,9 +82,9 @@ void loop(){
   drawMenu();
 
   // check the current state of the navigation buttons
-  upButtonState =   digitalRead(upBtn);
-  downButtonState = digitalRead(downBtn);
-  selectButtonState = digitalRead(selectBtn);
+  upButtonState =   digitalRead(upButton);
+  downButtonState = digitalRead(downButton);
+  selectButtonState = digitalRead(selectButton);
   
   // check if any of the navigation buttons has been pressed
   checkIfUpButtonIsPressed();
@@ -122,7 +143,7 @@ void loop(){
 void checkIfDownButtonIsPressed(){
   if(downButtonState != lastDownButtonState){
     if(downButtonState == 0){
-      down=true;
+      down = true;
     }
     delay(50);
   }
@@ -153,6 +174,7 @@ void drawMenu(){
   if(page == 1){    
     lcd.setTextSize(1);
     lcd.clearDisplay();
+    // display the black FontColor on a white BackgroundColor
     lcd.setTextColor(BLACK, WHITE);
     lcd.setCursor(15, 0);
     lcd.print("MAIN MENU");
@@ -160,18 +182,21 @@ void drawMenu(){
     lcd.setCursor(0, 15);
   
     if(menuItem == 1){ 
+      // display the white FontColor on a black BackgroundColor
       lcd.setTextColor(WHITE, BLACK);
     } else {
+      // display the black FontColor on a white BackgroundColor
       lcd.setTextColor(BLACK, WHITE);
     }
 
     lcd.print(">Contrast");
     lcd.setCursor(0, 25);
   
-    if(menuItem == 2) 
-    {
+    if(menuItem == 2){
+      // display the white FontColor on a black BackgroundColor
       lcd.setTextColor(WHITE, BLACK);
     } else {
+      // display the black FontColor on a white BackgroundColor
       lcd.setTextColor(BLACK, WHITE);
     }  
 
@@ -184,18 +209,22 @@ void drawMenu(){
     }
     lcd.display();
     
-    if(menuItem==3){ 
+    if(menuItem == 3){ 
+      // display the white FontColor on a black BackgroundColor
       lcd.setTextColor(WHITE, BLACK);
     } else {
+      // display the black FontColor on a white BackgroundColor
       lcd.setTextColor(BLACK, WHITE);
     } 
 
     lcd.setCursor(0, 35);
     lcd.print(">Reset");
     lcd.display();
+
   } else if(page == 2){
     lcd.setTextSize(1);
     lcd.clearDisplay();
+    // display the white FontColor on a black BackgroundColor
     lcd.setTextColor(BLACK, WHITE);
     lcd.setCursor(15, 0);
     lcd.print("CONTRAST");
@@ -205,7 +234,6 @@ void drawMenu(){
     lcd.setTextSize(2);
     lcd.setCursor(5, 25);
     lcd.print(contrast);
-    lcd.setTextSize(2);
     lcd.display();
   }
 }
@@ -223,9 +251,9 @@ void setContrast(){
 }
 
 void turnBacklightOn(){
-  digitalWrite(lcdLedPin, LOW);
+  digitalWrite(lcdLedPin, HIGH);
 }
 
 void turnBacklightOff(){
-  digitalWrite(lcdLedPin, HIGH);
+  digitalWrite(lcdLedPin, LOW);
 }
