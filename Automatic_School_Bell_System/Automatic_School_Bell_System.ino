@@ -47,7 +47,7 @@ int page = 1;
 // set all button options to not pressed by default
 volatile boolean up = false;
 volatile boolean down = false;
-volatile boolean middle = false;
+volatile boolean select = false;
 
 // set button states to 0
 int upButtonState = 0;  
@@ -108,8 +108,7 @@ void loop(){
   if(down && page == 1){
     down = false;
     menuItem++;
-    if(menuItem == 4) 
-    {
+    if(menuItem == 4){
       menuItem = 1;
     }      
   } else if(down && page == 2){
@@ -118,8 +117,8 @@ void loop(){
     setContrast();
   }
 
-  if(middle){
-    middle = false;
+  if(select){
+    select = false;
     
     if(page == 1 && menuItem == 2){
       if(backlight){
@@ -140,6 +139,16 @@ void loop(){
   }
 }
 
+void checkIfUpButtonIsPressed(){
+  if(upButtonState != lastUpButtonState){
+    if(upButtonState == 0){
+      up = true;
+    }
+    delay(50);
+  }
+  lastUpButtonState = upButtonState;
+}
+
 void checkIfDownButtonIsPressed(){
   if(downButtonState != lastDownButtonState){
     if(downButtonState == 0){
@@ -150,20 +159,10 @@ void checkIfDownButtonIsPressed(){
   lastDownButtonState = downButtonState;
 }
 
-void checkIfUpButtonIsPressed(){
-  if(upButtonState != lastUpButtonState){
-    if(upButtonState == 0){
-      up=true;
-    }
-    delay(50);
-  }
-  lastUpButtonState = upButtonState;
-}
-
 void checkIfSelectButtonIsPressed(){
   if(selectButtonState != lastSelectButtonState){
     if(selectButtonState == 0){
-      middle=true;
+      select = true;
     }
     delay(50);
   }
