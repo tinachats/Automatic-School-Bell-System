@@ -26,9 +26,10 @@ Button upButton(5); // the pin at which the up button is attached to
 Button downButton(6); // the pin at which the down button is attached to
 Button selectButton(7); // the pin at which the select button is attached to
 
-// button time variables
-unsigned long prevPressMillis = 0;
-unsigned long pressInterval = 50;
+// timed events variables
+unsigned long prevMillis = 0; // the time the event last occured
+const unsigned long shortBellInterval = 3000; // the time it takes to ring the bell
+const unsigned long longBellInterval = 5000; // the time it takes to ring the bell
 
 // date variables
 int sec, min, hour, dt, day, mnth, year;
@@ -221,11 +222,8 @@ void setup() {
   // lcd.setFont(&FreeMono9pt7b); // set the font style of the lcd
   lcd.clearDisplay(); // clear the buffer
   lcd.setContrast(contrast); //Set contrast to 50
-  lcd.drawBitmap(0, 0, logo, 84, 40, BLACK); // display the app logo
-  lcd.setCursor(8, 40);
-  lcd.setTextSize(1);
-  lcd.print("Visionaries");
-  lcd.display();  
+  // show developer info
+  developerInfo(); 
 }
 
 void loop() {
@@ -317,8 +315,7 @@ void homescreen(float temp, int sec, int min, int hour, int dt, int year, String
 // ring the alarm
 void alarmActive(int sec, int min, int hour, String date){
   // make sure the alarm is not ringing during weekends
-  // if(date != "Sat" || date != "Sun"){
-  if(date == "Thu"){
+  if(date != "Sat" || date != "Sun"){
     if(min == 48 && hour == 8 && sec == 0){
       sirenOn();
     } else {
@@ -327,12 +324,15 @@ void alarmActive(int sec, int min, int hour, String date){
   }
 }
 
-// turn on the siren
-void sirenOn(){
-  // show the bell icon on the display
-  lcd.drawBitmap(18, 14, bellIcon, 45, 46, BLACK);
-  // sound the alarm
-  digitalWrite(buzzer, HIGH);
+// turn on the siren for a time determined by the time
+void sirenOn(String date){
+  // on any date not Monday or Friday
+  if(date != "Mon" || date !== "Fri"){
+    // show the bell icon on the display
+    lcd.drawBitmap(18, 14, bellIcon, 45, 46, BLACK);
+    // sound the alarm
+    digitalWrite(buzzer, HIGH);
+  }
 }
 
 // turn off the siren
@@ -341,6 +341,15 @@ void sirenOff(){
   lcd.drawBitmap(18, 14, clearBellIcon, 45, 46, BLACK);
   // sound the alarm
   digitalWrite(buzzer, LOW);
+}
+
+// display developer's info
+void developerInfo(){
+  lcd.drawBitmap(0, 0, logo, 84, 40, BLACK); // display the app logo
+  lcd.setCursor(8, 40);
+  lcd.setTextSize(1);
+  lcd.print("Visionaries");
+  lcd.display(); 
 }
 
 // alarm menu item
